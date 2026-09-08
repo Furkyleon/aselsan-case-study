@@ -103,10 +103,10 @@ class WorkerManagerTest {
         ).getFirst();
 
         workerManager.stopWorker(workerId);
-        await(() -> workerManager.getWorkers().stream()
-                .allMatch(worker -> worker.getJvmState() == Thread.State.TERMINATED));
-
-        workerManager.clearTerminatedWorkers();
+        await(() -> {
+            workerManager.clearTerminatedWorkers();
+            return workerManager.getWorkers().isEmpty();
+        });
 
         assertTrue(workerManager.getWorkers().isEmpty());
     }

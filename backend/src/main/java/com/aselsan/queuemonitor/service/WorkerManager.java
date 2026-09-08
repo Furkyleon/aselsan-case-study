@@ -91,6 +91,11 @@ public class WorkerManager implements AutoCloseable {
         workers.entrySet().removeIf(entry -> entry.getValue().isTerminated());
     }
 
+    public void reset() {
+        stopAll();
+        workers.clear();
+    }
+
     @Override
     @PreDestroy
     public void close() {
