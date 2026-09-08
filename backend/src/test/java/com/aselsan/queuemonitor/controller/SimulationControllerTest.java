@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -18,7 +19,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.SpringValidatorAdapter;
 
+import com.aselsan.queuemonitor.config.SimulationProperties;
 import com.aselsan.queuemonitor.domain.WorkerType;
+import com.aselsan.queuemonitor.exception.GlobalExceptionHandler;
 import com.aselsan.queuemonitor.service.MetricsService;
 import com.aselsan.queuemonitor.service.SimulationService;
 import com.aselsan.queuemonitor.service.WorkerManager;
@@ -27,6 +30,14 @@ import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 
 class SimulationControllerTest {
+
+    private static final SimulationProperties TEST_PROPERTIES =
+            new SimulationProperties(
+                    10,
+                    100,
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(1)
+            );
 
     private WorkerManager workerManager;
     private SimulationService simulationService;
@@ -37,7 +48,10 @@ class SimulationControllerTest {
     @BeforeEach
     void setUp() {
         workerManager = new WorkerManager();
-        simulationService = new SimulationService(workerManager);
+        simulationService = new SimulationService(
+                workerManager,
+                TEST_PROPERTIES
+        );
         metricsService = new MetricsService(simulationService);
         validatorFactory = Validation.buildDefaultValidatorFactory();
 
@@ -47,6 +61,7 @@ class SimulationControllerTest {
         );
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(new SpringValidatorAdapter(validatorFactory.getValidator()))
                 .build();
     }
@@ -85,8 +100,14 @@ class SimulationControllerTest {
                                   "receiverCount": 1,
                                   "queueCapacity": 0
                                 }
-                                """))
-                .andExpect(status().isBadRequest());
+                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Validation failed"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors.senderCount[0]")
+                        .value("senderCount cannot be negative"))
+                .andExpect(jsonPath("$.errors.queueCapacity[0]")
+                        .value("queueCapacity must be greater than zero"));
 
         assertFalse(simulationService.isRunning());
     }
@@ -168,5 +189,72 @@ class SimulationControllerTest {
                 .andExpect(jsonPath("$.running").value(true))
                 .andExpect(jsonPath("$.senders.total").value(1))
                 .andExpect(jsonPath("$.receivers.total").value(0));
+    }
+
+    @Test
+    void shouldReturnConflictWhenSimulationIsAlreadyRunning() throws Exception {
+        simulationService.start(1, 0, 10);
+
+        mockMvc.perform(post("/api/simulation/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "senderCount": 1,
+                                  "receiverCount": 1,
+                                  "queueCapacity": 10
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Simulation state conflict"))
+                .andExpect(jsonPath("$.detail").value("Simulation is already running"));
+    }
+
+    @Test
+    void shouldReturnConflictWhenAddingWorkerBeforeSimulationStarts() throws Exception {
+        mockMvc.perform(post("/api/simulation/workers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "SENDER",
+                                  "count": 1
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Simulation is not running"));
+    }
+
+    @Test
+    void shouldReturnNotFoundForUnknownWorker() throws Exception {
+        simulationService.start(1, 0, 10);
+
+        mockMvc.perform(delete(
+                        "/api/simulation/workers/{workerId}",
+                        UUID.randomUUID()
+                ))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Resource not found"));
+    }
+
+    @Test
+    void shouldReturnBadRequestForMalformedWorkerId() throws Exception {
+        mockMvc.perform(delete("/api/simulation/workers/not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid request"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenNoWorkersAreRequested() throws Exception {
+        mockMvc.perform(post("/api/simulation/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "senderCount": 0,
+                                  "receiverCount": 0,
+                                  "queueCapacity": 10
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid argument"))
+                .andExpect(jsonPath("$.detail").value("At least one worker is required"));
     }
 }

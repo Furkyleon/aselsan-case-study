@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,10 +13,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aselsan.queuemonitor.config.SimulationProperties;
 import com.aselsan.queuemonitor.domain.WorkerType;
 import com.aselsan.queuemonitor.worker.ManagedWorker;
 
 class SimulationServiceTest {
+
+    private static final SimulationProperties TEST_PROPERTIES =
+            new SimulationProperties(
+                    10,
+                    100,
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(1)
+            );
 
     private WorkerManager workerManager;
     private SimulationService simulationService;
@@ -23,7 +33,10 @@ class SimulationServiceTest {
     @BeforeEach
     void setUp() {
         workerManager = new WorkerManager();
-        simulationService = new SimulationService(workerManager);
+        simulationService = new SimulationService(
+                workerManager,
+                TEST_PROPERTIES
+        );
     }
 
     @AfterEach
@@ -124,6 +137,48 @@ class SimulationServiceTest {
                 IllegalArgumentException.class,
                 () -> simulationService.start(1, 1, 0)
         );
+    }
+
+    @Test
+    void shouldRejectStartWhenWorkerLimitIsExceeded() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> simulationService.start(6, 5, 10)
+        );
+
+        assertEquals(
+                "Total worker count cannot exceed 10",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldRejectStartWhenQueueCapacityLimitIsExceeded() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> simulationService.start(1, 1, 101)
+        );
+
+        assertEquals(
+                "queueCapacity cannot exceed 100",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldRejectWorkerAdditionWhenWorkerLimitIsExceeded() {
+        simulationService.start(1, 1, 10);
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> simulationService.addWorkers(WorkerType.SENDER, 9)
+        );
+
+        assertEquals(
+                "Total worker count cannot exceed 10",
+                exception.getMessage()
+        );
+        assertEquals(2, simulationService.getWorkers().size());
     }
 
     @Test

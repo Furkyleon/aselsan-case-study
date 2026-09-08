@@ -1,6 +1,5 @@
 package com.aselsan.queuemonitor.service;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -11,6 +10,7 @@ import java.util.concurrent.BlockingQueue;
 
 import org.springframework.stereotype.Service;
 
+import com.aselsan.queuemonitor.config.SimulationProperties;
 import com.aselsan.queuemonitor.domain.ActivityState;
 import com.aselsan.queuemonitor.domain.Message;
 import com.aselsan.queuemonitor.domain.WorkerType;
@@ -19,17 +19,23 @@ import com.aselsan.queuemonitor.worker.ManagedWorker;
 @Service
 public class SimulationService {
 
-    private static final Duration WORKER_INTERVAL = Duration.ofSeconds(1);
-
     private final WorkerManager workerManager;
+    private final SimulationProperties properties;
 
     private BlockingQueue<Message> queue;
     private boolean running;
 
-    public SimulationService(WorkerManager workerManager) {
+    public SimulationService(
+            WorkerManager workerManager,
+            SimulationProperties properties
+    ) {
         this.workerManager = Objects.requireNonNull(
                 workerManager,
                 "workerManager cannot be null"
+        );
+        this.properties = Objects.requireNonNull(
+                properties,
+                "properties cannot be null"
         );
     }
 
@@ -49,7 +55,7 @@ public class SimulationService {
                         WorkerType.SENDER,
                         senderCount,
                         newQueue,
-                        WORKER_INTERVAL
+                        properties.workerInterval()
                 );
             }
 
@@ -58,7 +64,7 @@ public class SimulationService {
                         WorkerType.RECEIVER,
                         receiverCount,
                         newQueue,
-                        WORKER_INTERVAL
+                        properties.workerInterval()
                 );
             }
 
@@ -74,12 +80,13 @@ public class SimulationService {
 
     public synchronized List<UUID> addWorkers(WorkerType type, int count) {
         ensureRunning();
+        validateWorkerAddition(type, count);
 
         return workerManager.startWorkers(
                 type,
                 count,
                 queue,
-                WORKER_INTERVAL
+                properties.workerInterval()
         );
     }
 
@@ -141,7 +148,7 @@ public class SimulationService {
         return worker.isRunning() || state == ActivityState.STARTING;
     }
 
-    private void validateStartRequest( int senderCount, int receiverCount, int queueCapacity) {
+    private void validateStartRequest(int senderCount, int receiverCount, int queueCapacity) {
         if (senderCount < 0) {
             throw new IllegalArgumentException("senderCount cannot be negative");
         }
@@ -156,6 +163,39 @@ public class SimulationService {
 
         if (queueCapacity <= 0) {
             throw new IllegalArgumentException("queueCapacity must be greater than zero");
+        }
+
+        long totalWorkers = (long) senderCount + receiverCount;
+        if (totalWorkers > properties.maxWorkers()) {
+            throw new IllegalArgumentException(
+                    "Total worker count cannot exceed " + properties.maxWorkers()
+            );
+        }
+
+        if (queueCapacity > properties.maxQueueCapacity()) {
+            throw new IllegalArgumentException(
+                    "queueCapacity cannot exceed " + properties.maxQueueCapacity()
+            );
+        }
+    }
+
+    private void validateWorkerAddition(WorkerType type, int count) {
+        if (type == null) {
+            throw new IllegalArgumentException("type cannot be null");
+        }
+
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be greater than zero");
+        }
+
+        long activeWorkerCount = workerManager.getWorkers().stream()
+                .filter(this::isActive)
+                .count();
+
+        if (activeWorkerCount + count > properties.maxWorkers()) {
+            throw new IllegalArgumentException(
+                    "Total worker count cannot exceed " + properties.maxWorkers()
+            );
         }
     }
 }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aselsan.queuemonitor.config.SimulationProperties;
 import com.aselsan.queuemonitor.domain.ActivityState;
 import com.aselsan.queuemonitor.dto.response.SimulationStatusResponse;
 import com.aselsan.queuemonitor.dto.response.WorkerStatusResponse;
@@ -19,6 +20,13 @@ import com.aselsan.queuemonitor.dto.response.WorkerStatusResponse;
 class MetricsServiceTest {
 
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(2);
+    private static final SimulationProperties TEST_PROPERTIES =
+            new SimulationProperties(
+                    10,
+                    100,
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(1)
+            );
 
     private WorkerManager workerManager;
     private SimulationService simulationService;
@@ -27,7 +35,10 @@ class MetricsServiceTest {
     @BeforeEach
     void setUp() {
         workerManager = new WorkerManager();
-        simulationService = new SimulationService(workerManager);
+        simulationService = new SimulationService(
+                workerManager,
+                TEST_PROPERTIES
+        );
         metricsService = new MetricsService(simulationService);
     }
 

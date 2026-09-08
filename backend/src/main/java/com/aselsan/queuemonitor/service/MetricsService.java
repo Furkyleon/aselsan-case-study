@@ -43,7 +43,7 @@ public class MetricsService {
         return status;
     }
 
-    @Scheduled(fixedRateString = "${simulation.metrics.interval-ms:1000}")
+    @Scheduled(fixedRateString = "${simulation.metrics-interval:1s}")
     public void collectMetrics() {
         refresh();
     }
