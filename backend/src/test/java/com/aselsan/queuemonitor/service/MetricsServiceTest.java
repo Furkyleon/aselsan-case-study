@@ -50,6 +50,20 @@ class MetricsServiceTest {
     }
 
     @Test
+    void shouldUpdateCachedStatusWhenMetricsAreCollected() {
+        SimulationStatusResponse initialStatus = metricsService.getStatus();
+        simulationService.start(1, 0, 2);
+
+        assertFalse(initialStatus.running());
+        assertFalse(metricsService.getStatus().running());
+
+        metricsService.collectMetrics();
+
+        assertTrue(metricsService.getStatus().running());
+        assertEquals(1, metricsService.getStatus().senders().total());
+    }
+
+    @Test
     void shouldCalculateQueueOccupancyAndNormalizeTimedWaiting()
             throws InterruptedException {
         simulationService.start(1, 0, 2);

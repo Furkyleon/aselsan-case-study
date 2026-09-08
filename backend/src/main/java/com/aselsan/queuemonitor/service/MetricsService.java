@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.aselsan.queuemonitor.domain.ActivityState;
@@ -19,6 +21,8 @@ import com.aselsan.queuemonitor.worker.ManagedWorker;
 public class MetricsService {
 
     private final SimulationService simulationService;
+    private final AtomicReference<SimulationStatusResponse> latestStatus =
+            new AtomicReference<>();
 
     public MetricsService(SimulationService simulationService) {
         this.simulationService = Objects.requireNonNull(
@@ -28,6 +32,23 @@ public class MetricsService {
     }
 
     public SimulationStatusResponse getStatus() {
+        SimulationStatusResponse status = latestStatus.get();
+
+        return status == null ? refresh() : status;
+    }
+
+    public SimulationStatusResponse refresh() {
+        SimulationStatusResponse status = createStatus();
+        latestStatus.set(status);
+        return status;
+    }
+
+    @Scheduled(fixedRateString = "${simulation.metrics.interval-ms:1000}")
+    public void collectMetrics() {
+        refresh();
+    }
+
+    private SimulationStatusResponse createStatus() {
         Collection<ManagedWorker> workers = simulationService.getWorkers();
 
         return new SimulationStatusResponse(
@@ -90,7 +111,8 @@ public class MetricsService {
         ActivityState activityState = worker.getActivityState();
 
         if (activityState == ActivityState.STOPPED
-                || activityState == ActivityState.FAILED) {
+                || activityState == ActivityState.FAILED
+                || (!worker.isRunning() && activityState != ActivityState.STARTING)) {
             return MetricState.TERMINATED;
         }
 
