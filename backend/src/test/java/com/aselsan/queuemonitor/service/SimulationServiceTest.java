@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -79,6 +80,40 @@ class SimulationServiceTest {
         assertEquals(2, addedWorkerIds.size());
         assertEquals(1, countWorkers(WorkerType.SENDER));
         assertEquals(2, countWorkers(WorkerType.RECEIVER));
+    }
+
+    @Test
+    void shouldStopOneWorkerByType() {
+        simulationService.start(2, 1, 5);
+
+        UUID stoppedWorkerId = simulationService.stopOneWorker(
+                WorkerType.SENDER
+        );
+
+        ManagedWorker stoppedWorker = simulationService.getWorkers().stream()
+                .filter(worker -> worker.getId().equals(stoppedWorkerId))
+                .findFirst()
+                .orElseThrow();
+
+        assertFalse(stoppedWorker.isRunning());
+        assertEquals(1, countActiveWorkers(WorkerType.SENDER));
+        assertEquals(1, countActiveWorkers(WorkerType.RECEIVER));
+        assertTrue(simulationService.isRunning());
+    }
+
+    @Test
+    void shouldRejectStoppingOneWorkerWhenTypeHasNoActiveWorkers() {
+        simulationService.start(0, 1, 5);
+
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> simulationService.stopOneWorker(WorkerType.SENDER)
+        );
+
+        assertEquals(
+                "No active SENDER worker found",
+                exception.getMessage()
+        );
     }
 
     @Test
@@ -191,6 +226,12 @@ class SimulationServiceTest {
 
     private long countWorkers(WorkerType type) {
         return workersOfType(type).size();
+    }
+
+    private long countActiveWorkers(WorkerType type) {
+        return workersOfType(type).stream()
+                .filter(ManagedWorker::isRunning)
+                .count();
     }
 
     private List<ManagedWorker> workersOfType(WorkerType type) {

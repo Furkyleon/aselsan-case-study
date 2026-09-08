@@ -2,6 +2,7 @@ package com.aselsan.queuemonitor.service;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,6 +95,26 @@ public class SimulationService {
         ensureRunning();
         workerManager.stopWorker(workerId);
         refreshRunningState();
+    }
+
+    public synchronized UUID stopOneWorker(WorkerType type) {
+        ensureRunning();
+
+        if (type == null) {
+            throw new IllegalArgumentException("type cannot be null");
+        }
+
+        ManagedWorker worker = workerManager.getWorkers().stream()
+                .filter(this::isActive)
+                .filter(candidate -> candidate.getType() == type)
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException(
+                        "No active " + type + " worker found"
+                ));
+
+        workerManager.stopWorker(worker.getId());
+        refreshRunningState();
+        return worker.getId();
     }
 
     public synchronized void stopWorkers(WorkerType type) {

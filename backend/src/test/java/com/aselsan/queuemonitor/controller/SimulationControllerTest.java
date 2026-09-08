@@ -129,6 +129,26 @@ class SimulationControllerTest {
     }
 
     @Test
+    void shouldStopOneWorkerByType() throws Exception {
+        simulationService.start(2, 1, 10);
+
+        mockMvc.perform(delete("/api/simulation/workers")
+                        .queryParam("type", "SENDER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.running").value(true))
+                .andExpect(jsonPath("$.senders.total").value(2))
+                .andExpect(jsonPath("$.senders.terminated").value(1))
+                .andExpect(jsonPath("$.receivers.terminated").value(0));
+    }
+
+    @Test
+    void shouldRejectMissingWorkerTypeWhenStoppingOneWorker() throws Exception {
+        mockMvc.perform(delete("/api/simulation/workers"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid request"));
+    }
+
+    @Test
     void shouldStopWorkerById() throws Exception {
         simulationService.start(1, 0, 10);
         UUID workerId = simulationService.getWorkers().iterator().next().getId();
