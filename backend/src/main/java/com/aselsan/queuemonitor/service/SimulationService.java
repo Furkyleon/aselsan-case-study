@@ -91,6 +91,25 @@ public class SimulationService {
         );
     }
 
+    public synchronized int updateWorkerPriority(WorkerType type, int priority) {
+        ensureRunning();
+        validatePriorityRequest(type, priority);
+
+        List<ManagedWorker> activeWorkers = workerManager.getWorkers().stream()
+                .filter(this::isActive)
+                .filter(worker -> worker.getType() == type)
+                .toList();
+
+        if (activeWorkers.isEmpty()) {
+            throw new NoSuchElementException(
+                    "No active " + type + " worker found"
+            );
+        }
+
+        activeWorkers.forEach(worker -> worker.setPriority(priority));
+        return activeWorkers.size();
+    }
+
     public synchronized void stopWorker(UUID workerId) {
         ensureRunning();
         workerManager.stopWorker(workerId);
@@ -124,6 +143,7 @@ public class SimulationService {
     }
 
     public synchronized void stopAll() {
+        ensureRunning();
         workerManager.stopAll();
         running = false;
     }
@@ -216,6 +236,21 @@ public class SimulationService {
         if (activeWorkerCount + count > properties.maxWorkers()) {
             throw new IllegalArgumentException(
                     "Total worker count cannot exceed " + properties.maxWorkers()
+            );
+        }
+    }
+
+    private void validatePriorityRequest(WorkerType type, int priority) {
+        if (type == null) {
+            throw new IllegalArgumentException("type cannot be null");
+        }
+
+        if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY) {
+            throw new IllegalArgumentException(
+                    "priority must be between "
+                            + Thread.MIN_PRIORITY
+                            + " and "
+                            + Thread.MAX_PRIORITY
             );
         }
     }

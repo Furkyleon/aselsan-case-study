@@ -19,6 +19,7 @@ public class SenderWorker implements ManagedWorker {
 
     private volatile ActivityState activityState = ActivityState.STARTING;
     private volatile Thread executionThread;
+    private volatile int priority = Thread.NORM_PRIORITY;
     private long sequenceNumber;
 
     public SenderWorker(BlockingQueue<Message> queue, Duration interval) {
@@ -31,6 +32,8 @@ public class SenderWorker implements ManagedWorker {
         executionThread = Thread.currentThread();
 
         try {
+            executionThread.setPriority(priority);
+
             while (running.get() && !executionThread.isInterrupted()) {
                 produceMessage();
                 Thread.sleep(interval.toMillis());
@@ -110,9 +113,37 @@ public class SenderWorker implements ManagedWorker {
     }
 
     @Override
+    public int getPriority() {
+        return priority;
+    }
+
+    @Override
+    public void setPriority(int priority) {
+        validatePriority(priority);
+        this.priority = priority;
+
+        Thread thread = executionThread;
+
+        if (thread != null && thread.isAlive()) {
+            thread.setPriority(priority);
+        }
+    }
+
+    @Override
     public boolean isRunning() {
         Thread thread = executionThread;
 
         return running.get() && thread != null && thread.isAlive();
+    }
+
+    private void validatePriority(int priority) {
+        if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY) {
+            throw new IllegalArgumentException(
+                    "priority must be between "
+                            + Thread.MIN_PRIORITY
+                            + " and "
+                            + Thread.MAX_PRIORITY
+            );
+        }
     }
 }

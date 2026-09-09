@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,7 +18,9 @@ import com.aselsan.queuemonitor.domain.WorkerType;
 import com.aselsan.queuemonitor.dto.request.AddWorkersRequest;
 import com.aselsan.queuemonitor.dto.request.StartSimulationRequest;
 import com.aselsan.queuemonitor.dto.request.StopSimulationRequest;
+import com.aselsan.queuemonitor.dto.request.UpdateWorkerPriorityRequest;
 import com.aselsan.queuemonitor.dto.response.SimulationStatusResponse;
+import com.aselsan.queuemonitor.dto.response.WorkerPriorityResponse;
 import com.aselsan.queuemonitor.service.MetricsService;
 import com.aselsan.queuemonitor.service.SimulationService;
 
@@ -81,6 +84,32 @@ public class SimulationController {
     public SimulationStatusResponse addWorkers(@Valid @RequestBody AddWorkersRequest request) {
         simulationService.addWorkers(request.type(), request.count());
         return metricsService.refresh();
+    }
+
+    @PatchMapping("/workers/priority")
+    @Operation(
+            summary = "Worker önceliğini değiştir",
+            description = "Seçilen tipteki tüm aktif worker thread'lerine 1-10 arasında öncelik uygular."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Worker öncelikleri güncellendi"),
+            @ApiResponse(responseCode = "400", description = "Worker tipi veya öncelik geçersiz"),
+            @ApiResponse(responseCode = "404", description = "Bu tipte aktif worker bulunamadı"),
+            @ApiResponse(responseCode = "409", description = "Simülasyon çalışmıyor")
+    })
+    public WorkerPriorityResponse updateWorkerPriority(
+            @Valid @RequestBody UpdateWorkerPriorityRequest request
+    ) {
+        int updatedWorkers = simulationService.updateWorkerPriority(
+                request.type(),
+                request.priority()
+        );
+
+        return new WorkerPriorityResponse(
+                request.type(),
+                request.priority(),
+                updatedWorkers
+        );
     }
 
     @DeleteMapping("/workers")

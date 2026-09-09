@@ -30,6 +30,7 @@ class QueueMonitorApplicationTests {
 				.andExpect(jsonPath("$.info.title").value("Queue Monitor API"))
 				.andExpect(jsonPath("$.info.version").value("v1"))
 				.andExpect(jsonPath("$.paths['/api/simulation/start']").exists())
+				.andExpect(jsonPath("$.paths['/api/simulation/workers/priority']").exists())
 				.andExpect(jsonPath("$.paths['/api/simulation/status']").exists());
 	}
 
@@ -41,9 +42,9 @@ class QueueMonitorApplicationTests {
 
 	@Test
 	void shouldAllowCorsRequestsFromFrontend() throws Exception {
-		mockMvc.perform(options("/api/simulation/status")
+		mockMvc.perform(options("/api/simulation/workers/priority")
 						.header("Origin", "http://localhost:5173")
-						.header("Access-Control-Request-Method", "GET"))
+						.header("Access-Control-Request-Method", "PATCH"))
 				.andExpect(status().isOk())
 				.andExpect(header().string(
 						"Access-Control-Allow-Origin",

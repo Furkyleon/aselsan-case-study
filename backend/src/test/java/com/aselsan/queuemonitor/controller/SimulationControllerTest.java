@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,6 +130,42 @@ class SimulationControllerTest {
     }
 
     @Test
+    void shouldUpdateWorkerPriorityByType() throws Exception {
+        simulationService.start(2, 1, 10);
+
+        mockMvc.perform(patch("/api/simulation/workers/priority")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "SENDER",
+                                  "priority": 7
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("SENDER"))
+                .andExpect(jsonPath("$.priority").value(7))
+                .andExpect(jsonPath("$.updatedWorkers").value(2));
+    }
+
+    @Test
+    void shouldRejectInvalidWorkerPriority() throws Exception {
+        simulationService.start(1, 0, 10);
+
+        mockMvc.perform(patch("/api/simulation/workers/priority")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "SENDER",
+                                  "priority": 11
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Validation failed"))
+                .andExpect(jsonPath("$.errors.priority[0]")
+                        .value("priority must be at most 10"));
+    }
+
+    @Test
     void shouldStopOneWorkerByType() throws Exception {
         simulationService.start(2, 1, 10);
 
@@ -197,6 +234,20 @@ class SimulationControllerTest {
                 .andExpect(jsonPath("$.running").value(false));
 
         assertFalse(simulationService.isRunning());
+    }
+
+    @Test
+    void shouldReturnConflictWhenStoppingAllBeforeSimulationStarts() throws Exception {
+        mockMvc.perform(post("/api/simulation/stop")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "scope": "ALL"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Simulation state conflict"))
+                .andExpect(jsonPath("$.detail").value("Simulation is not running"));
     }
 
     @Test

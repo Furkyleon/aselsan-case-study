@@ -100,7 +100,7 @@ Temel bileşenler:
 
 - **SimulationController:** HTTP isteklerini doğrular ve servis katmanına aktarır.
 - **SimulationService:** Simülasyon yaşam döngüsünü yönetir, worker ve queue
-  sınırlarını uygular.
+  sınırlarını uygular; worker gruplarının thread önceliğini değiştirir.
 - **WorkerManager:** Worker kayıtlarını ve worker thread'lerini yönetir.
 - **SenderWorker:** Mesaj üretir ve `offer` ile bounded queue'ya eklemeyi dener.
 - **ReceiverWorker:** `poll` ile kuyruktan mesaj tüketir ve tüketilen mesajı loglar.
@@ -215,6 +215,41 @@ curl -X POST http://localhost:8080/api/simulation/workers \
 `type` değeri `SENDER` veya `RECEIVER` olabilir. Başarılı cevap kodu
 `201 Created` değeridir.
 
+### Worker grubunun thread önceliğini değiştir
+
+```http
+PATCH /api/simulation/workers/priority
+Content-Type: application/json
+```
+
+```json
+{
+  "type": "SENDER",
+  "priority": 7
+}
+```
+
+```bash
+curl -X PATCH http://localhost:8080/api/simulation/workers/priority \
+  -H "Content-Type: application/json" \
+  -d '{"type":"SENDER","priority":7}'
+```
+
+Örnek cevap:
+
+```json
+{
+  "type": "SENDER",
+  "priority": 7,
+  "updatedWorkers": 2
+}
+```
+
+`priority` değeri Java'nın `Thread.MIN_PRIORITY` ve `Thread.MAX_PRIORITY`
+değerlerine karşılık gelen `1–10` aralığında olmalıdır. Güncelleme seçilen
+tipteki tüm aktif worker'lara uygulanır. Java thread önceliği işletim sistemi ve
+JVM scheduler'ı için bir ipucudur; kesin çalışma sırası garantisi vermez.
+
 ### Tipine göre bir worker azalt
 
 ```http
@@ -303,6 +338,7 @@ Test paketi şunları kapsar:
 - Sender ve receiver worker yaşam döngüsü
 - WorkerManager işlemleri
 - Simülasyon başlatma, ekleme ve durdurma akışları
+- Worker grubu thread önceliği güncelleme ve doğrulama akışları
 - Worker ve queue sınırları
 - Scheduled metrik üretimi
 - Request doğrulama ve global hata cevapları

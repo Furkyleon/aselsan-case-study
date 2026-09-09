@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -91,6 +92,44 @@ class SenderWorkerTest {
                 () -> assertEquals(Thread.State.NEW, worker.getJvmState()),
                 () -> assertFalse(worker.isRunning()),
                 () -> assertTrue(queue.isEmpty())
+        );
+    }
+
+    @Test
+    void shouldUpdateThreadPriority() throws InterruptedException {
+        BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
+        SenderWorker worker = new SenderWorker(queue, LONG_INTERVAL);
+        Thread thread = new Thread(worker, "sender-priority-test");
+
+        try {
+            thread.start();
+            await(worker::isRunning);
+
+            worker.setPriority(Thread.MAX_PRIORITY);
+
+            assertAll(
+                    () -> assertEquals(Thread.MAX_PRIORITY, worker.getPriority()),
+                    () -> assertEquals(Thread.MAX_PRIORITY, thread.getPriority())
+            );
+        } finally {
+            stopAndJoin(worker, thread);
+        }
+    }
+
+    @Test
+    void shouldRejectInvalidPriority() {
+        BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
+        SenderWorker worker = new SenderWorker(queue, LONG_INTERVAL);
+
+        assertAll(
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> worker.setPriority(Thread.MIN_PRIORITY - 1)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> worker.setPriority(Thread.MAX_PRIORITY + 1)
+                )
         );
     }
 

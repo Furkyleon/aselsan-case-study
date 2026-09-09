@@ -83,6 +83,26 @@ class ReceiverWorkerTest {
         );
     }
 
+    @Test
+    void shouldApplyConfiguredPriorityWhenThreadStarts() throws InterruptedException {
+        BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
+        ReceiverWorker worker = new ReceiverWorker(queue, LONG_INTERVAL);
+        Thread thread = new Thread(worker, "receiver-priority-test");
+        worker.setPriority(Thread.MIN_PRIORITY);
+
+        try {
+            thread.start();
+            await(worker::isRunning);
+
+            assertAll(
+                    () -> assertEquals(Thread.MIN_PRIORITY, worker.getPriority()),
+                    () -> assertEquals(Thread.MIN_PRIORITY, thread.getPriority())
+            );
+        } finally {
+            stopAndJoin(worker, thread);
+        }
+    }
+
     private static void await(BooleanSupplier condition) throws InterruptedException {
         long deadline = System.nanoTime() + TEST_TIMEOUT.toNanos();
 

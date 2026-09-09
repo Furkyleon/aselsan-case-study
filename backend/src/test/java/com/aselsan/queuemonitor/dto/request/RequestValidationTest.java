@@ -56,4 +56,18 @@ class RequestValidationTest {
         assertEquals(1, validator.validate(invalidRequest).size());
         assertTrue(validator.validate(validRequest).isEmpty());
     }
+
+    @Test
+    void shouldValidateWorkerPriorityRequest() {
+        UpdateWorkerPriorityRequest tooLow =
+                new UpdateWorkerPriorityRequest(WorkerType.SENDER, 0);
+        UpdateWorkerPriorityRequest tooHigh =
+                new UpdateWorkerPriorityRequest(WorkerType.RECEIVER, 11);
+        UpdateWorkerPriorityRequest validRequest =
+                new UpdateWorkerPriorityRequest(WorkerType.SENDER, 7);
+
+        assertEquals(1, validator.validate(tooLow).size());
+        assertEquals(1, validator.validate(tooHigh).size());
+        assertTrue(validator.validate(validRequest).isEmpty());
+    }
 }

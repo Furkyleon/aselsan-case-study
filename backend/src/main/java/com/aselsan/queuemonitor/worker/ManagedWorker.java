@@ -15,6 +15,10 @@ public interface ManagedWorker extends Runnable {
 
     Thread.State getJvmState();
 
+    int getPriority();
+
+    void setPriority(int priority);
+
     boolean isRunning();
 
     void stop();

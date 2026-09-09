@@ -83,6 +83,40 @@ class SimulationServiceTest {
     }
 
     @Test
+    void shouldUpdatePrioritiesForSelectedActiveWorkerType() {
+        simulationService.start(2, 1, 5);
+
+        int updatedWorkers = simulationService.updateWorkerPriority(
+                WorkerType.SENDER,
+                7
+        );
+
+        assertEquals(2, updatedWorkers);
+        assertTrue(workersOfType(WorkerType.SENDER).stream()
+                .allMatch(worker -> worker.getPriority() == 7));
+        assertTrue(workersOfType(WorkerType.RECEIVER).stream()
+                .allMatch(worker -> worker.getPriority() == Thread.NORM_PRIORITY));
+    }
+
+    @Test
+    void shouldRejectPriorityUpdateWhenTypeHasNoActiveWorkers() {
+        simulationService.start(1, 0, 5);
+
+        NoSuchElementException exception = assertThrows(
+                NoSuchElementException.class,
+                () -> simulationService.updateWorkerPriority(
+                        WorkerType.RECEIVER,
+                        7
+                )
+        );
+
+        assertEquals(
+                "No active RECEIVER worker found",
+                exception.getMessage()
+        );
+    }
+
+    @Test
     void shouldStopOneWorkerByType() {
         simulationService.start(2, 1, 5);
 
@@ -140,6 +174,14 @@ class SimulationServiceTest {
         assertFalse(simulationService.isRunning());
         assertTrue(simulationService.getWorkers().stream()
                 .noneMatch(ManagedWorker::isRunning));
+    }
+
+    @Test
+    void shouldRejectStopAllBeforeSimulationStarts() {
+        assertThrows(
+                IllegalStateException.class,
+                simulationService::stopAll
+        );
     }
 
     @Test
