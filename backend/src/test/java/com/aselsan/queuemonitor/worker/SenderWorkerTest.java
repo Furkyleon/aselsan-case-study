@@ -42,6 +42,7 @@ class SenderWorkerTest {
                     () -> assertTrue(message.content().contains("Message #0")),
                     () -> assertEquals(WorkerType.SENDER, worker.getType()),
                     () -> assertEquals(ActivityState.PRODUCING, worker.getActivityState()),
+                    () -> assertEquals(1, worker.getProcessedMessageCount()),
                     () -> assertTrue(worker.isRunning())
             );
         } finally {
@@ -75,6 +76,7 @@ class SenderWorkerTest {
 
             assertNotNull(producedMessage);
             assertEquals(0, producedMessage.sequenceNumber());
+            assertEquals(1, worker.getProcessedMessageCount());
         } finally {
             stopAndJoin(worker, thread);
         }

@@ -1,6 +1,6 @@
 const SEGMENT_COUNT = 18
 
-function QueueCard({ queue, running }) {
+function QueueCard({ messageFlow, queue, running }) {
   const occupancy = Math.min(100, Math.max(0, queue.occupancyPercentage ?? 0))
   const filledSegments = Math.round((occupancy / 100) * SEGMENT_COUNT)
 
@@ -48,12 +48,22 @@ function QueueCard({ queue, running }) {
         </div>
       </div>
 
-      <div className="flow-line" aria-label="Sender, queue ve receiver veri akışı">
-        <span>Sender</span>
-        <i aria-hidden="true" />
-        <strong>{queue.size} bekliyor</strong>
-        <i aria-hidden="true" />
-        <span>Receiver</span>
+      <div className="message-flow" aria-label="Sender, queue ve receiver mesaj akışı">
+        <div className="flow-stat flow-sent">
+          <span>Sender → Queue</span>
+          <strong>{messageFlow.produced}</strong>
+          <small>{messageFlow.productionRate.toFixed(1)} mesaj/sn · gönderildi</small>
+        </div>
+        <div className="flow-queue">
+          <span>Queue</span>
+          <strong>{queue.size}</strong>
+          <small>bekliyor</small>
+        </div>
+        <div className="flow-stat flow-received">
+          <span>Queue → Receiver</span>
+          <strong>{messageFlow.consumed}</strong>
+          <small>{messageFlow.consumptionRate.toFixed(1)} mesaj/sn · alındı</small>
+        </div>
       </div>
     </section>
   )

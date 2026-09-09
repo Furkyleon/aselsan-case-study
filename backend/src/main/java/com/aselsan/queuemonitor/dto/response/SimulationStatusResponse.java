@@ -11,6 +11,8 @@ public record SimulationStatusResponse(
 
         QueueStatusResponse queue,
 
+        MessageFlowStatusResponse messages,
+
         WorkerStatusResponse senders,
 
         WorkerStatusResponse receivers,

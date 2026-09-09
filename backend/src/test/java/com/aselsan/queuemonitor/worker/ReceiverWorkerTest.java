@@ -38,6 +38,7 @@ class ReceiverWorkerTest {
                     () -> assertTrue(queue.isEmpty()),
                     () -> assertEquals(WorkerType.RECEIVER, worker.getType()),
                     () -> assertEquals(ActivityState.CONSUMING, worker.getActivityState()),
+                    () -> assertEquals(1, worker.getProcessedMessageCount()),
                     () -> assertTrue(worker.isRunning())
             );
         } finally {

@@ -2,14 +2,88 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { simulationApi } from '../api/simulationApi.js'
 
 const DEFAULT_POLLING_INTERVAL = 1_000
+const MAX_HISTORY_POINTS = 60
 
-export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}) {
+function getActiveWorkerCount(workerStatus = {}) {
+  return (workerStatus.runnable ?? 0)
+    + (workerStatus.waiting ?? 0)
+    + (workerStatus.blocked ?? 0)
+}
+
+function calculateRate(currentValue, previousValue, elapsedSeconds) {
+  if (previousValue == null || elapsedSeconds <= 0 || currentValue < previousValue) {
+    return 0
+  }
+
+  return (currentValue - previousValue) / elapsedSeconds
+}
+
+function createHistoryPoint(nextStatus, previousPoint) {
+  const produced = nextStatus.messages?.produced ?? 0
+  const consumed = nextStatus.messages?.consumed ?? 0
+  const timestamp = nextStatus.timestamp ?? new Date().toISOString()
+  const elapsedSeconds = previousPoint
+    ? (new Date(timestamp).getTime() - new Date(previousPoint.timestamp).getTime()) / 1_000
+    : 0
+
+  return {
+    timestamp,
+    running: nextStatus.running ?? false,
+    queueOccupancy: nextStatus.queue?.occupancyPercentage ?? 0,
+    queueSize: nextStatus.queue?.size ?? 0,
+    produced,
+    consumed,
+    productionRate: calculateRate(
+      produced,
+      previousPoint?.produced,
+      elapsedSeconds,
+    ),
+    consumptionRate: calculateRate(
+      consumed,
+      previousPoint?.consumed,
+      elapsedSeconds,
+    ),
+    senderActive: getActiveWorkerCount(nextStatus.senders),
+    receiverActive: getActiveWorkerCount(nextStatus.receivers),
+  }
+}
+
+export function useSimulation({ pollingInterval = DEFAULT_POLLING_INTERVAL } = {}) {
   const [status, setStatus] = useState(null)
+  const [history, setHistory] = useState([])
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pendingAction, setPendingAction] = useState(null)
   const mountedRef = useRef(false)
   const pollingRequestRef = useRef(null)
+
+  const applyStatus = useCallback((nextStatus) => {
+    setStatus(nextStatus)
+    setHistory((currentHistory) => {
+      const previousPoint = currentHistory.at(-1)
+
+      if (previousPoint?.timestamp === nextStatus.timestamp) {
+        return currentHistory
+      }
+
+      if (!nextStatus.running && previousPoint && !previousPoint.running) {
+        return currentHistory
+      }
+
+      const startsNewRun = Boolean(
+        nextStatus.running && previousPoint && !previousPoint.running,
+      )
+      const historyPoint = createHistoryPoint(
+        nextStatus,
+        startsNewRun ? null : previousPoint,
+      )
+      const nextHistory = startsNewRun
+        ? [historyPoint]
+        : [...currentHistory, historyPoint]
+
+      return nextHistory.slice(-MAX_HISTORY_POINTS)
+    })
+  }, [])
 
   const refresh = useCallback(async ({ background = false } = {}) => {
     if (pollingRequestRef.current) {
@@ -25,8 +99,10 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
       })
 
       if (mountedRef.current) {
-        setStatus(nextStatus)
-        setError(null)
+        applyStatus(nextStatus)
+        setError((currentError) => (
+          currentError?.status ? currentError : null
+        ))
       }
     } catch (requestError) {
       if (requestError.name !== 'AbortError' && mountedRef.current) {
@@ -41,7 +117,7 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
         setIsLoading(false)
       }
     }
-  }, [])
+  }, [applyStatus])
 
   useEffect(() => {
     mountedRef.current = true
@@ -60,7 +136,11 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
     }
   }, [pollingInterval, refresh])
 
-  const runAction = useCallback(async (actionName, operation, {returnsStatus = true,} = {}) => {
+  const runAction = useCallback(async (
+    actionName,
+    operation,
+    { returnsStatus = true } = {},
+  ) => {
     setPendingAction(actionName)
     setError(null)
 
@@ -68,7 +148,7 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
       const result = await operation()
 
       if (mountedRef.current && returnsStatus) {
-        setStatus(result)
+        applyStatus(result)
       }
 
       if (!returnsStatus) {
@@ -87,7 +167,7 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
         setPendingAction(null)
       }
     }
-  }, [refresh])
+  }, [applyStatus, refresh])
 
   const start = useCallback(
     (configuration) => runAction(
@@ -142,6 +222,7 @@ export function useSimulation({pollingInterval = DEFAULT_POLLING_INTERVAL,} = {}
 
   return {
     status,
+    history,
     error,
     isLoading,
     isMutating: pendingAction !== null,

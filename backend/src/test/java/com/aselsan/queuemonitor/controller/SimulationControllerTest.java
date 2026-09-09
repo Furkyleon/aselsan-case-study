@@ -87,6 +87,8 @@ class SimulationControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.running").value(true))
                 .andExpect(jsonPath("$.queue.capacity").value(10))
+                .andExpect(jsonPath("$.messages.produced").isNumber())
+                .andExpect(jsonPath("$.messages.consumed").isNumber())
                 .andExpect(jsonPath("$.senders.total").value(2))
                 .andExpect(jsonPath("$.receivers.total").value(1));
     }
@@ -231,7 +233,10 @@ class SimulationControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.running").value(false));
+                .andExpect(jsonPath("$.running").value(false))
+                .andExpect(jsonPath("$.queue.size").value(0))
+                .andExpect(jsonPath("$.queue.capacity").value(0))
+                .andExpect(jsonPath("$.queue.occupancyPercentage").value(0.0));
 
         assertFalse(simulationService.isRunning());
     }

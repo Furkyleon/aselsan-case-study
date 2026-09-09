@@ -55,6 +55,8 @@ class MetricsServiceTest {
         assertEquals(0, status.queue().size());
         assertEquals(0, status.queue().capacity());
         assertEquals(0.0, status.queue().occupancyPercentage());
+        assertEquals(0, status.messages().produced());
+        assertEquals(0, status.messages().consumed());
         assertEquals(0, status.senders().total());
         assertEquals(0, status.receivers().total());
         assertNotNull(status.timestamp());
@@ -91,6 +93,7 @@ class MetricsServiceTest {
         assertEquals(50.0, status.queue().occupancyPercentage());
         assertEquals(1, status.senders().total());
         assertEquals(1, status.senders().waiting());
+        assertEquals(1, status.messages().produced());
     }
 
     @Test

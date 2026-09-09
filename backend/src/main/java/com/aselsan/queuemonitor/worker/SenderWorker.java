@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.aselsan.queuemonitor.domain.ActivityState;
 import com.aselsan.queuemonitor.domain.Message;
@@ -16,11 +17,11 @@ public class SenderWorker implements ManagedWorker {
     private final Duration interval;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicLong sentMessageCount = new AtomicLong();
 
     private volatile ActivityState activityState = ActivityState.STARTING;
     private volatile Thread executionThread;
     private volatile int priority = Thread.NORM_PRIORITY;
-    private long sequenceNumber;
 
     public SenderWorker(BlockingQueue<Message> queue, Duration interval) {
         this.queue = queue;
@@ -56,7 +57,7 @@ public class SenderWorker implements ManagedWorker {
     }
 
     private void produceMessage() {
-        long currentSequence = sequenceNumber;
+        long currentSequence = sentMessageCount.get();
 
         Message message = new Message(
                 UUID.randomUUID(),
@@ -69,7 +70,7 @@ public class SenderWorker implements ManagedWorker {
         boolean added = queue.offer(message);
 
         if (added) {
-            sequenceNumber++;
+            sentMessageCount.incrementAndGet();
             activityState = ActivityState.PRODUCING;
         } else {
             activityState = ActivityState.QUEUE_FULL;
@@ -127,6 +128,11 @@ public class SenderWorker implements ManagedWorker {
         if (thread != null && thread.isAlive()) {
             thread.setPriority(priority);
         }
+    }
+
+    @Override
+    public long getProcessedMessageCount() {
+        return sentMessageCount.get();
     }
 
     @Override

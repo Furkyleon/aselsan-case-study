@@ -171,6 +171,10 @@ curl http://localhost:8080/api/simulation/status
     "capacity": 10,
     "occupancyPercentage": 30.0
   },
+  "messages": {
+    "produced": 8,
+    "consumed": 5
+  },
   "senders": {
     "total": 2,
     "runnable": 0,
@@ -191,6 +195,8 @@ curl http://localhost:8080/api/simulation/status
 
 `total` alanı aktif ve sonlandırılmış worker kayıtlarının toplamıdır. Aktif worker
 sayısı `runnable + waiting + blocked` olarak hesaplanabilir.
+`messages.produced` ve `messages.consumed` alanları simülasyon boyunca başarıyla
+queue'ye eklenen ve queue'dan alınan toplam mesaj sayılarıdır.
 
 ### Worker ekle
 

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ public class ReceiverWorker implements ManagedWorker {
     private final Duration interval;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicLong receivedMessageCount = new AtomicLong();
 
     private volatile ActivityState activityState = ActivityState.STARTING;
     private volatile Thread executionThread;
@@ -67,6 +69,7 @@ public class ReceiverWorker implements ManagedWorker {
         }
 
         activityState = ActivityState.CONSUMING;
+        receivedMessageCount.incrementAndGet();
 
         LOGGER.info(
                 "Receiver {} consumed message {} from sender {} (sequence: {}, content: {})",
@@ -129,6 +132,11 @@ public class ReceiverWorker implements ManagedWorker {
         if (thread != null && thread.isAlive()) {
             thread.setPriority(priority);
         }
+    }
+
+    @Override
+    public long getProcessedMessageCount() {
+        return receivedMessageCount.get();
     }
 
     @Override

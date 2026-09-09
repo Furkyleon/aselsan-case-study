@@ -146,6 +146,7 @@ public class SimulationService {
         ensureRunning();
         workerManager.stopAll();
         running = false;
+        queue = null;
     }
 
     public synchronized boolean isRunning() {
@@ -181,6 +182,10 @@ public class SimulationService {
     private void refreshRunningState() {
         running = workerManager.getWorkers().stream()
                 .anyMatch(this::isActive);
+
+        if (!running) {
+            queue = null;
+        }
     }
 
     private boolean isActive(ManagedWorker worker) {

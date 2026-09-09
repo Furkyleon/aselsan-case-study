@@ -24,6 +24,11 @@ function WorkerCard({
   const activeCount = status.runnable + status.waiting + status.blocked
   const scope = type === 'SENDER' ? 'SENDERS' : 'RECEIVERS'
   const typeLabel = type === 'SENDER' ? 'sender' : 'receiver'
+  const actionKey = type.toLowerCase()
+  const isAdding = pendingAction === `add-${actionKey}`
+  const isStoppingOne = pendingAction === `stop-one-${actionKey}`
+  const isStoppingGroup = pendingAction === `stop-${scope.toLowerCase()}`
+  const isUpdatingPriority = pendingAction === `priority-${actionKey}`
 
   return (
     <section className={`panel worker-panel accent-${accent}`}>
@@ -65,18 +70,20 @@ function WorkerCard({
             type="button"
             aria-label={`Bir ${typeLabel} durdur`}
             disabled={disabled || !running || activeCount === 0}
+            aria-busy={isStoppingOne}
             onClick={() => onStopOne(type)}
           >
-            −
+            {isStoppingOne ? '…' : '−'}
           </button>
-          <span>{pendingAction === `add-${type.toLowerCase()}` ? '…' : activeCount}</span>
+          <span>{activeCount}</span>
           <button
             type="button"
             aria-label={`Bir ${typeLabel} ekle`}
             disabled={disabled || !running}
+            aria-busy={isAdding}
             onClick={() => onAdd({ type, count: 1 })}
           >
-            +
+            {isAdding ? '…' : '+'}
           </button>
         </div>
 
@@ -84,16 +91,17 @@ function WorkerCard({
           type="button"
           className="button button-quiet"
           disabled={disabled || !running || activeCount === 0}
+          aria-busy={isStoppingGroup}
           onClick={() => onStopGroup(scope)}
         >
-          Grubu durdur
+          {isStoppingGroup ? 'Durduruluyor…' : 'Grubu durdur'}
         </button>
       </div>
 
       <div className="priority-control">
         <div>
           <label htmlFor={`priority-${type}`}>Thread priority</label>
-          <span>{priority} / 10</span>
+          <span>JVM ipucu · grup geneli · {priority} / 10</span>
         </div>
         <input
           id={`priority-${type}`}
@@ -108,9 +116,10 @@ function WorkerCard({
           type="button"
           className="text-button"
           disabled={disabled || !running || activeCount === 0}
+          aria-busy={isUpdatingPriority}
           onClick={() => onPriorityChange({ type, priority })}
         >
-          Uygula
+          {isUpdatingPriority ? 'Güncelleniyor…' : 'Uygula'}
         </button>
       </div>
     </section>

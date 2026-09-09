@@ -6,9 +6,31 @@ const INITIAL_CONFIGURATION = {
   queueCapacity: 20,
 }
 
-function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
+function firstError(errors, field) {
+  return errors?.[field]?.[0] ?? ''
+}
+
+function StartSimulationForm({
+  disabled,
+  pendingAction,
+  running,
+  serverErrors,
+  onClearError,
+  onStart,
+  onStopAll,
+}) {
   const [configuration, setConfiguration] = useState(INITIAL_CONFIGURATION)
-  const [validationError, setValidationError] = useState('')
+  const [validationErrors, setValidationErrors] = useState({})
+
+  const errors = {
+    senderCount: validationErrors.senderCount
+      ?? firstError(serverErrors, 'senderCount'),
+    receiverCount: validationErrors.receiverCount
+      ?? firstError(serverErrors, 'receiverCount'),
+    queueCapacity: validationErrors.queueCapacity
+      ?? firstError(serverErrors, 'queueCapacity'),
+    workerTotal: validationErrors.workerTotal,
+  }
 
   function updateField(event) {
     const { name, value } = event.target
@@ -16,29 +38,45 @@ function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
       ...current,
       [name]: Number(value),
     }))
-    setValidationError('')
+    setValidationErrors((current) => ({
+      ...current,
+      [name]: undefined,
+      workerTotal: undefined,
+    }))
+    onClearError()
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
 
+    const nextErrors = {}
+
+    if (configuration.senderCount < 0) {
+      nextErrors.senderCount = 'Sender sayısı negatif olamaz.'
+    }
+
+    if (configuration.receiverCount < 0) {
+      nextErrors.receiverCount = 'Receiver sayısı negatif olamaz.'
+    }
+
+    if (configuration.queueCapacity < 1 || configuration.queueCapacity > 1000) {
+      nextErrors.queueCapacity = 'Queue kapasitesi 1–1000 arasında olmalı.'
+    }
+
     const totalWorkers = configuration.senderCount + configuration.receiverCount
-
     if (totalWorkers < 1) {
-      setValidationError('En az bir sender veya receiver gerekli.')
+      nextErrors.workerTotal = 'En az bir sender veya receiver gerekli.'
+    } else if (totalWorkers > 100) {
+      nextErrors.workerTotal = 'Toplam worker sayısı 100’ü geçemez.'
+    }
+
+    setValidationErrors(nextErrors)
+
+    if (Object.keys(nextErrors).length > 0) {
       return
     }
 
-    if (totalWorkers > 100) {
-      setValidationError('Toplam worker sayısı 100’ü geçemez.')
-      return
-    }
-
-    try {
-      await onStart(configuration)
-    } catch {
-      // API errors are presented by the dashboard error banner.
-    }
+    await onStart(configuration)
   }
 
   return (
@@ -66,15 +104,16 @@ function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
             type="button"
             className="button button-danger"
             disabled={disabled}
+            aria-busy={pendingAction === 'stop-all'}
             onClick={onStopAll}
           >
-            Tümünü durdur
+            {pendingAction === 'stop-all' ? 'Durduruluyor…' : 'Tümünü durdur'}
           </button>
         </div>
       ) : (
-        <form className="start-form" onSubmit={handleSubmit}>
+        <form className="start-form" noValidate onSubmit={handleSubmit}>
           <div className="form-grid">
-            <label>
+            <label className={errors.senderCount ? 'has-error' : ''}>
               <span>Sender</span>
               <input
                 type="number"
@@ -82,10 +121,17 @@ function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
                 min="0"
                 max="100"
                 value={configuration.senderCount}
+                aria-invalid={Boolean(errors.senderCount)}
+                aria-describedby={errors.senderCount ? 'sender-error' : undefined}
                 onChange={updateField}
               />
+              {errors.senderCount && (
+                <small id="sender-error" className="field-error">
+                  {errors.senderCount}
+                </small>
+              )}
             </label>
-            <label>
+            <label className={errors.receiverCount ? 'has-error' : ''}>
               <span>Receiver</span>
               <input
                 type="number"
@@ -93,12 +139,25 @@ function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
                 min="0"
                 max="100"
                 value={configuration.receiverCount}
+                aria-invalid={Boolean(errors.receiverCount)}
+                aria-describedby={errors.receiverCount ? 'receiver-error' : undefined}
                 onChange={updateField}
               />
+              {errors.receiverCount && (
+                <small id="receiver-error" className="field-error">
+                  {errors.receiverCount}
+                </small>
+              )}
             </label>
           </div>
 
-          <label>
+          {errors.workerTotal && (
+            <p className="field-error group-error" role="alert">
+              {errors.workerTotal}
+            </p>
+          )}
+
+          <label className={errors.queueCapacity ? 'has-error' : ''}>
             <span>Queue kapasitesi</span>
             <input
               type="number"
@@ -106,16 +165,24 @@ function StartSimulationForm({ disabled, running, onStart, onStopAll }) {
               min="1"
               max="1000"
               value={configuration.queueCapacity}
+              aria-invalid={Boolean(errors.queueCapacity)}
+              aria-describedby={errors.queueCapacity ? 'capacity-error' : undefined}
               onChange={updateField}
             />
+            {errors.queueCapacity && (
+              <small id="capacity-error" className="field-error">
+                {errors.queueCapacity}
+              </small>
+            )}
           </label>
 
-          {validationError && (
-            <p className="field-error" role="alert">{validationError}</p>
-          )}
-
-          <button type="submit" className="button button-primary" disabled={disabled}>
-            {disabled ? 'Başlatılıyor…' : 'Simülasyonu başlat'}
+          <button
+            type="submit"
+            className="button button-primary"
+            disabled={disabled}
+            aria-busy={pendingAction === 'start'}
+          >
+            {pendingAction === 'start' ? 'Başlatılıyor…' : 'Simülasyonu başlat'}
           </button>
         </form>
       )}

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.aselsan.queuemonitor.domain.ActivityState;
 import com.aselsan.queuemonitor.domain.Message;
 import com.aselsan.queuemonitor.domain.WorkerType;
+import com.aselsan.queuemonitor.dto.response.MessageFlowStatusResponse;
 import com.aselsan.queuemonitor.dto.response.QueueStatusResponse;
 import com.aselsan.queuemonitor.dto.response.SimulationStatusResponse;
 import com.aselsan.queuemonitor.dto.response.WorkerStatusResponse;
@@ -54,10 +55,28 @@ public class MetricsService {
         return new SimulationStatusResponse(
                 simulationService.isRunning(),
                 createQueueStatus(),
+                createMessageFlowStatus(workers),
                 createWorkerStatus(workers, WorkerType.SENDER),
                 createWorkerStatus(workers, WorkerType.RECEIVER),
                 Instant.now()
         );
+    }
+
+    private MessageFlowStatusResponse createMessageFlowStatus(
+            Collection<ManagedWorker> workers
+    ) {
+        long produced = 0;
+        long consumed = 0;
+
+        for (ManagedWorker worker : workers) {
+            if (worker.getType() == WorkerType.SENDER) {
+                produced += worker.getProcessedMessageCount();
+            } else {
+                consumed += worker.getProcessedMessageCount();
+            }
+        }
+
+        return new MessageFlowStatusResponse(produced, consumed);
     }
 
     private QueueStatusResponse createQueueStatus() {

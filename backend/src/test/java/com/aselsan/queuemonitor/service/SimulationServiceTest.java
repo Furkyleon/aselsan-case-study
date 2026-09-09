@@ -172,6 +172,7 @@ class SimulationServiceTest {
         simulationService.stopAll();
 
         assertFalse(simulationService.isRunning());
+        assertTrue(simulationService.findQueue().isEmpty());
         assertTrue(simulationService.getWorkers().stream()
                 .noneMatch(ManagedWorker::isRunning));
     }

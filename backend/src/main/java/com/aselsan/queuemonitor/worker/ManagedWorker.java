@@ -19,6 +19,8 @@ public interface ManagedWorker extends Runnable {
 
     void setPriority(int priority);
 
+    long getProcessedMessageCount();
+
     boolean isRunning();
 
     void stop();
