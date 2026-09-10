@@ -90,7 +90,14 @@ class SimulationControllerTest {
                 .andExpect(jsonPath("$.messages.produced").isNumber())
                 .andExpect(jsonPath("$.messages.consumed").isNumber())
                 .andExpect(jsonPath("$.senders.total").value(2))
-                .andExpect(jsonPath("$.receivers.total").value(1));
+                .andExpect(jsonPath("$.senders.priority").value(5))
+                .andExpect(jsonPath("$.receivers.total").value(1))
+                .andExpect(jsonPath("$.workers.length()").value(3))
+                .andExpect(jsonPath("$.workers[0].id").isString())
+                .andExpect(jsonPath("$.workers[0].jvmState").isString())
+                .andExpect(jsonPath("$.workers[0].activityState").isString())
+                .andExpect(jsonPath("$.workers[0].priority").value(5))
+                .andExpect(jsonPath("$.workers[0].processedMessageCount").isNumber());
     }
 
     @Test

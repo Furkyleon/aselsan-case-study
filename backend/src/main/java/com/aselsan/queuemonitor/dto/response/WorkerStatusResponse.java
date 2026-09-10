@@ -17,6 +17,9 @@ public record WorkerStatusResponse(
         int blocked,
 
         @Schema(description = "Sonlandırılmış worker sayısı", example = "0")
-        int terminated
+        int terminated,
+
+        @Schema(description = "Bu worker grubu için uygulanan thread priority", example = "5")
+        int priority
 ) {
 }

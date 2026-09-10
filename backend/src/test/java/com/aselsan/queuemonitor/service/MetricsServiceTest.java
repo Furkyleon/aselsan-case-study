@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aselsan.queuemonitor.config.SimulationProperties;
 import com.aselsan.queuemonitor.domain.ActivityState;
+import com.aselsan.queuemonitor.domain.WorkerType;
 import com.aselsan.queuemonitor.dto.response.SimulationStatusResponse;
 import com.aselsan.queuemonitor.dto.response.WorkerStatusResponse;
 
@@ -58,7 +59,9 @@ class MetricsServiceTest {
         assertEquals(0, status.messages().produced());
         assertEquals(0, status.messages().consumed());
         assertEquals(0, status.senders().total());
+        assertEquals(Thread.NORM_PRIORITY, status.senders().priority());
         assertEquals(0, status.receivers().total());
+        assertTrue(status.workers().isEmpty());
         assertNotNull(status.timestamp());
     }
 
@@ -94,6 +97,12 @@ class MetricsServiceTest {
         assertEquals(1, status.senders().total());
         assertEquals(1, status.senders().waiting());
         assertEquals(1, status.messages().produced());
+        assertEquals(1, status.workers().size());
+        assertEquals(WorkerType.SENDER, status.workers().getFirst().type());
+        assertEquals(
+                status.messages().produced(),
+                status.workers().getFirst().processedMessageCount()
+        );
     }
 
     @Test
@@ -106,6 +115,7 @@ class MetricsServiceTest {
         assertEquals(1, status.receivers().total());
         assertEquals(status.senders().total(), categorizedTotal(status.senders()));
         assertEquals(status.receivers().total(), categorizedTotal(status.receivers()));
+        assertEquals(3, status.workers().size());
     }
 
     @Test

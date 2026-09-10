@@ -2,6 +2,8 @@ package com.aselsan.queuemonitor.service;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -15,6 +17,7 @@ import com.aselsan.queuemonitor.domain.WorkerType;
 import com.aselsan.queuemonitor.dto.response.MessageFlowStatusResponse;
 import com.aselsan.queuemonitor.dto.response.QueueStatusResponse;
 import com.aselsan.queuemonitor.dto.response.SimulationStatusResponse;
+import com.aselsan.queuemonitor.dto.response.WorkerDetailResponse;
 import com.aselsan.queuemonitor.dto.response.WorkerStatusResponse;
 import com.aselsan.queuemonitor.worker.ManagedWorker;
 
@@ -58,6 +61,7 @@ public class MetricsService {
                 createMessageFlowStatus(workers),
                 createWorkerStatus(workers, WorkerType.SENDER),
                 createWorkerStatus(workers, WorkerType.RECEIVER),
+                createWorkerDetails(workers),
                 Instant.now()
         );
     }
@@ -122,8 +126,28 @@ public class MetricsService {
                 runnable,
                 waiting,
                 blocked,
-                terminated
+                terminated,
+                simulationService.getWorkerPriority(type)
         );
+    }
+
+    private List<WorkerDetailResponse> createWorkerDetails(
+            Collection<ManagedWorker> workers
+    ) {
+        return workers.stream()
+                .sorted(Comparator
+                        .comparing(ManagedWorker::getType)
+                        .thenComparing(worker -> worker.getId().toString()))
+                .map(worker -> new WorkerDetailResponse(
+                        worker.getId(),
+                        worker.getType(),
+                        worker.getJvmState(),
+                        worker.getActivityState(),
+                        worker.getPriority(),
+                        worker.isRunning(),
+                        worker.getProcessedMessageCount()
+                ))
+                .toList();
     }
 
     private MetricState classify(ManagedWorker worker) {

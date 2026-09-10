@@ -7,6 +7,7 @@ import QueueCard from './components/QueueCard.jsx'
 import StartSimulationForm from './components/StartSimulationForm.jsx'
 import TelemetryPanel from './components/TelemetryPanel.jsx'
 import WorkerCard from './components/WorkerCard.jsx'
+import WorkerDetailsPanel from './components/WorkerDetailsPanel.jsx'
 import { useSimulation } from './hooks/useSimulation.js'
 
 const EMPTY_WORKER_STATUS = {
@@ -15,6 +16,7 @@ const EMPTY_WORKER_STATUS = {
   waiting: 0,
   blocked: 0,
   terminated: 0,
+  priority: 5,
 }
 
 const EMPTY_QUEUE_STATUS = {
@@ -39,6 +41,7 @@ function App() {
     addWorkers,
     updateWorkerPriority,
     stopOneWorker,
+    stopWorker,
     stop,
   } = useSimulation()
 
@@ -46,6 +49,7 @@ function App() {
   const queue = status?.queue ?? EMPTY_QUEUE_STATUS
   const senders = status?.senders ?? EMPTY_WORKER_STATUS
   const receivers = status?.receivers ?? EMPTY_WORKER_STATUS
+  const workers = status?.workers ?? []
   const latestHistory = history.at(-1)
   const messageFlow = {
     produced: status?.messages?.produced ?? 0,
@@ -157,6 +161,7 @@ function App() {
           />
 
           <WorkerCard
+            key={`sender-${senders.priority}`}
             accent="cyan"
             disabled={isMutating}
             pendingAction={pendingAction}
@@ -183,6 +188,7 @@ function App() {
           />
 
           <WorkerCard
+            key={`receiver-${receivers.priority}`}
             accent="amber"
             disabled={isMutating}
             pendingAction={pendingAction}
@@ -205,6 +211,16 @@ function App() {
             onStopOne={(type) => runWithFeedback(
               () => stopOneWorker(type),
               'Bir receiver worker durduruldu.',
+            )}
+          />
+
+          <WorkerDetailsPanel
+            disabled={isMutating}
+            pendingAction={pendingAction}
+            workers={workers}
+            onStop={(workerId) => runWithFeedback(
+              () => stopWorker(workerId),
+              'Worker durduruldu.',
             )}
           />
 

@@ -50,10 +50,21 @@ public class WorkerManager implements AutoCloseable {
     }
 
     public List<UUID> startWorkers(WorkerType type, int count, BlockingQueue<Message> queue, Duration interval) {
+        return startWorkers(type, count, queue, interval, Thread.NORM_PRIORITY);
+    }
+
+    public List<UUID> startWorkers(
+            WorkerType type,
+            int count,
+            BlockingQueue<Message> queue,
+            Duration interval,
+            int priority
+    ) {
         validateStartRequest(type, count, queue, interval);
+        validatePriority(priority);
 
         return java.util.stream.IntStream.range(0, count)
-                .mapToObj(index -> startWorker(type, queue, interval))
+                .mapToObj(index -> startWorker(type, queue, interval, priority))
                 .toList();
     }
 
@@ -115,8 +126,14 @@ public class WorkerManager implements AutoCloseable {
         }
     }
 
-    private UUID startWorker(WorkerType type, BlockingQueue<Message> queue, Duration interval) {
+    private UUID startWorker(
+            WorkerType type,
+            BlockingQueue<Message> queue,
+            Duration interval,
+            int priority
+    ) {
         ManagedWorker worker = createWorker(type, queue, interval);
+        worker.setPriority(priority);
         FutureTask<Void> future = new FutureTask<>(worker, null);
         WorkerHandle handle = new WorkerHandle(worker, future);
 
@@ -151,6 +168,17 @@ public class WorkerManager implements AutoCloseable {
 
         if (interval.compareTo(MINIMUM_INTERVAL) < 0) {
             throw new IllegalArgumentException("interval must be at least 1 millisecond");
+        }
+    }
+
+    private void validatePriority(int priority) {
+        if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY) {
+            throw new IllegalArgumentException(
+                    "priority must be between "
+                            + Thread.MIN_PRIORITY
+                            + " and "
+                            + Thread.MAX_PRIORITY
+            );
         }
     }
 }

@@ -20,7 +20,8 @@ function WorkerCard({
   onStopGroup,
   onStopOne,
 }) {
-  const [priority, setPriority] = useState(5)
+  const appliedPriority = status.priority ?? 5
+  const [priority, setPriority] = useState(appliedPriority)
   const activeCount = status.runnable + status.waiting + status.blocked
   const scope = type === 'SENDER' ? 'SENDERS' : 'RECEIVERS'
   const typeLabel = type === 'SENDER' ? 'sender' : 'receiver'
@@ -29,6 +30,7 @@ function WorkerCard({
   const isStoppingOne = pendingAction === `stop-one-${actionKey}`
   const isStoppingGroup = pendingAction === `stop-${scope.toLowerCase()}`
   const isUpdatingPriority = pendingAction === `priority-${actionKey}`
+  const priorityChanged = priority !== appliedPriority
 
   return (
     <section className={`panel worker-panel accent-${accent}`}>
@@ -101,7 +103,11 @@ function WorkerCard({
       <div className="priority-control">
         <div>
           <label htmlFor={`priority-${type}`}>Thread priority</label>
-          <span>JVM ipucu · grup geneli · {priority} / 10</span>
+          <span>
+            {priorityChanged
+              ? `Uygulanan ${appliedPriority} · Seçilen ${priority}`
+              : `JVM ipucu · Uygulanan ${appliedPriority} / 10`}
+          </span>
         </div>
         <input
           id={`priority-${type}`}
@@ -115,7 +121,7 @@ function WorkerCard({
         <button
           type="button"
           className="text-button"
-          disabled={disabled || !running || activeCount === 0}
+          disabled={disabled || !running || activeCount === 0 || !priorityChanged}
           aria-busy={isUpdatingPriority}
           onClick={() => onPriorityChange({ type, priority })}
         >

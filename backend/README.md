@@ -180,15 +180,28 @@ curl http://localhost:8080/api/simulation/status
     "runnable": 0,
     "waiting": 2,
     "blocked": 0,
-    "terminated": 0
+    "terminated": 0,
+    "priority": 7
   },
   "receivers": {
     "total": 1,
     "runnable": 0,
     "waiting": 1,
     "blocked": 0,
-    "terminated": 0
+    "terminated": 0,
+    "priority": 5
   },
+  "workers": [
+    {
+      "id": "397370cc-cdef-4ee6-b691-b91cda68529e",
+      "type": "SENDER",
+      "jvmState": "TIMED_WAITING",
+      "activityState": "PRODUCING",
+      "priority": 7,
+      "running": true,
+      "processedMessageCount": 4
+    }
+  ],
   "timestamp": "2026-09-08T20:00:00Z"
 }
 ```
@@ -197,6 +210,9 @@ curl http://localhost:8080/api/simulation/status
 sayısı `runnable + waiting + blocked` olarak hesaplanabilir.
 `messages.produced` ve `messages.consumed` alanları simülasyon boyunca başarıyla
 queue'ye eklenen ve queue'dan alınan toplam mesaj sayılarıdır.
+Worker gruplarındaki `priority`, yeni worker'ların da devralacağı uygulanmış
+değerdir. `workers` listesi her worker'ın anlık JVM ve aktivite durumunu,
+priority değerini ve işlediği mesaj sayısını verir.
 
 ### Worker ekle
 
@@ -255,6 +271,9 @@ curl -X PATCH http://localhost:8080/api/simulation/workers/priority \
 değerlerine karşılık gelen `1–10` aralığında olmalıdır. Güncelleme seçilen
 tipteki tüm aktif worker'lara uygulanır. Java thread önceliği işletim sistemi ve
 JVM scheduler'ı için bir ipucudur; kesin çalışma sırası garantisi vermez.
+Seçilen değer simülasyon boyunca grup ayarı olarak saklanır ve daha sonra aynı
+tipte eklenen worker'lar tarafından devralınır. Yeni simülasyon `5` varsayılanıyla
+başlar.
 
 ### Tipine göre bir worker azalt
 
@@ -345,6 +364,8 @@ Test paketi şunları kapsar:
 - WorkerManager işlemleri
 - Simülasyon başlatma, ekleme ve durdurma akışları
 - Worker grubu thread önceliği güncelleme ve doğrulama akışları
+- Yeni worker'ların grup thread önceliğini devralması
+- Worker detay metrikleri ve tekil worker durumları
 - Worker ve queue sınırları
 - Scheduled metrik üretimi
 - Request doğrulama ve global hata cevapları

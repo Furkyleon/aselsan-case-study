@@ -92,10 +92,23 @@ class SimulationServiceTest {
         );
 
         assertEquals(2, updatedWorkers);
+        assertEquals(7, simulationService.getWorkerPriority(WorkerType.SENDER));
         assertTrue(workersOfType(WorkerType.SENDER).stream()
                 .allMatch(worker -> worker.getPriority() == 7));
         assertTrue(workersOfType(WorkerType.RECEIVER).stream()
                 .allMatch(worker -> worker.getPriority() == Thread.NORM_PRIORITY));
+    }
+
+    @Test
+    void shouldApplyStoredPriorityToWorkersAddedLater() {
+        simulationService.start(1, 1, 5);
+        simulationService.updateWorkerPriority(WorkerType.SENDER, 8);
+
+        simulationService.addWorkers(WorkerType.SENDER, 1);
+
+        assertEquals(8, simulationService.getWorkerPriority(WorkerType.SENDER));
+        assertTrue(workersOfType(WorkerType.SENDER).stream()
+                .allMatch(worker -> worker.getPriority() == 8));
     }
 
     @Test
@@ -195,6 +208,10 @@ class SimulationServiceTest {
         assertEquals(0, countWorkers(WorkerType.SENDER));
         assertEquals(1, countWorkers(WorkerType.RECEIVER));
         assertEquals(1, simulationService.getWorkers().size());
+        assertEquals(
+                Thread.NORM_PRIORITY,
+                simulationService.getWorkerPriority(WorkerType.SENDER)
+        );
     }
 
     @Test

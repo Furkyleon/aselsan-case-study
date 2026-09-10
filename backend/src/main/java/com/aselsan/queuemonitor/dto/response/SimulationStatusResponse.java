@@ -1,6 +1,7 @@
 package com.aselsan.queuemonitor.dto.response;
 
 import java.time.Instant;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,6 +17,8 @@ public record SimulationStatusResponse(
         WorkerStatusResponse senders,
 
         WorkerStatusResponse receivers,
+
+        List<WorkerDetailResponse> workers,
 
         @Schema(description = "Metriklerin oluşturulma zamanı")
         Instant timestamp

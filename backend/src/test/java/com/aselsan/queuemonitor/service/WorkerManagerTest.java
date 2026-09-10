@@ -59,6 +59,23 @@ class WorkerManagerTest {
     }
 
     @Test
+    void shouldApplyPriorityBeforeWorkersStart() throws InterruptedException {
+        workerManager.startWorkers(
+                WorkerType.SENDER,
+                1,
+                queue,
+                WORKER_INTERVAL,
+                8
+        );
+
+        await(() -> workerManager.getWorkers().stream()
+                .allMatch(ManagedWorker::isRunning));
+
+        assertTrue(workerManager.getWorkers().stream()
+                .allMatch(worker -> worker.getPriority() == 8));
+    }
+
+    @Test
     void shouldStopOnlyWorkersOfRequestedType() throws InterruptedException {
         workerManager.startWorkers(WorkerType.SENDER, 1, queue, WORKER_INTERVAL);
         workerManager.startWorkers(WorkerType.RECEIVER, 1, queue, WORKER_INTERVAL);

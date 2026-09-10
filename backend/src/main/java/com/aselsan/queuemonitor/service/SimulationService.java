@@ -1,6 +1,7 @@
 package com.aselsan.queuemonitor.service;
 
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -22,6 +23,8 @@ public class SimulationService {
 
     private final WorkerManager workerManager;
     private final SimulationProperties properties;
+    private final EnumMap<WorkerType, Integer> workerPriorities =
+            new EnumMap<>(WorkerType.class);
 
     private BlockingQueue<Message> queue;
     private boolean running;
@@ -38,6 +41,7 @@ public class SimulationService {
                 properties,
                 "properties cannot be null"
         );
+        resetWorkerPriorities();
     }
 
     public synchronized void start(int senderCount, int receiverCount, int queueCapacity) {
@@ -48,6 +52,7 @@ public class SimulationService {
         }
 
         workerManager.reset();
+        resetWorkerPriorities();
         BlockingQueue<Message> newQueue = new ArrayBlockingQueue<>(queueCapacity);
 
         try {
@@ -56,7 +61,8 @@ public class SimulationService {
                         WorkerType.SENDER,
                         senderCount,
                         newQueue,
-                        properties.workerInterval()
+                        properties.workerInterval(),
+                        getWorkerPriority(WorkerType.SENDER)
                 );
             }
 
@@ -65,7 +71,8 @@ public class SimulationService {
                         WorkerType.RECEIVER,
                         receiverCount,
                         newQueue,
-                        properties.workerInterval()
+                        properties.workerInterval(),
+                        getWorkerPriority(WorkerType.RECEIVER)
                 );
             }
 
@@ -87,7 +94,8 @@ public class SimulationService {
                 type,
                 count,
                 queue,
-                properties.workerInterval()
+                properties.workerInterval(),
+                getWorkerPriority(type)
         );
     }
 
@@ -107,6 +115,7 @@ public class SimulationService {
         }
 
         activeWorkers.forEach(worker -> worker.setPriority(priority));
+        workerPriorities.put(type, priority);
         return activeWorkers.size();
     }
 
@@ -171,6 +180,11 @@ public class SimulationService {
 
     public synchronized Collection<ManagedWorker> getWorkers() {
         return workerManager.getWorkers();
+    }
+
+    public synchronized int getWorkerPriority(WorkerType type) {
+        Objects.requireNonNull(type, "type cannot be null");
+        return workerPriorities.get(type);
     }
 
     private void ensureRunning() {
@@ -258,5 +272,10 @@ public class SimulationService {
                             + Thread.MAX_PRIORITY
             );
         }
+    }
+
+    private void resetWorkerPriorities() {
+        workerPriorities.put(WorkerType.SENDER, Thread.NORM_PRIORITY);
+        workerPriorities.put(WorkerType.RECEIVER, Thread.NORM_PRIORITY);
     }
 }
